@@ -64,7 +64,7 @@ typedef struct RSS_Channel
 	/** Optional. Defines the e-mail address to the webmaster of the feed */
 	RSS_char*		webMaster; 	
 
-	/** Items list */
+	/** Items */
 	RSS_Item*		items;
 
 } RSS_Channel;

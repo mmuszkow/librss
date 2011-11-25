@@ -1,5 +1,6 @@
 // Microsoft Visual C++ generated resource script.
 //
+#include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -71,10 +72,10 @@ BEGIN
             VALUE "Comments", "RSS"
             VALUE "CompanyName", "Maciej Muszkowski"
             VALUE "FileDescription", "librss"
-            VALUE "FileVersion", "0, 0, 0, 1"
+            VALUE "FileVersion", "0, 0, 2, 0"
             VALUE "InternalName", "librss"
             VALUE "LegalCopyright", "Copyright (C) 2011 Maciej Muszkowski"
-            VALUE "OriginalFilename", "librss.exe"
+            VALUE "OriginalFilename", "librss.dll"
             VALUE "ProductName", "librss Application"
             VALUE "ProductVersion", "0, 0, 0, 1"
         END

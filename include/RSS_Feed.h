@@ -1,5 +1,5 @@
-#ifndef __RSS_Feed_H__
-#define __RSS_Feed_H__
+#ifndef __RSS_FEED_H__
+#define __RSS_FEED_H__
 
 #include "RSS.h"
 #include "RSS_Channel.h"

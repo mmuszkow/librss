@@ -1,8 +1,10 @@
-#ifndef __RSS_Item_H__
-#define __RSS_Item_H__
+#ifndef __RSS_ITEM_H__
+#define __RSS_ITEM_H__
+
+typedef struct RSS_Item RSS_Item;
 
 /** Represents RSS <item> or ATOM <entry> Element */
-typedef struct RSS_Item
+struct RSS_Item
 {
 	/** Required. Defines the title of the item */
 	RSS_char*		title;
@@ -34,9 +36,9 @@ typedef struct RSS_Item
 	/** Optional. Specifies a third-party source for the item */
 	RSS_char*		source;
 
-	/** Pointer to next item */
-	struct RSS_Item*	next;
+	/** Next item */
+	RSS_Item*		next;
 
-} RSS_Item;
+};
 
 #endif

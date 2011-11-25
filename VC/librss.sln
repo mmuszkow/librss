@@ -5,17 +5,38 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "librss", "librss.vcproj", "
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Win32 = Debug|Win32
-		Release|Win32 = Release|Win32
+		Debug DLL|Win32 = Debug DLL|Win32
+		Debug DLL|x64 = Debug DLL|x64
+		Debug LIB|Win32 = Debug LIB|Win32
+		Debug LIB|x64 = Debug LIB|x64
+		Release DLL|Win32 = Release DLL|Win32
+		Release DLL|x64 = Release DLL|x64
+		Release LIB|Win32 = Release LIB|Win32
+		Release LIB|x64 = Release LIB|x64
 		Test|Win32 = Test|Win32
+		Test|x64 = Test|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{BEC3C79F-085E-4940-92EB-228107452452}.Debug|Win32.ActiveCfg = Debug|Win32
-		{BEC3C79F-085E-4940-92EB-228107452452}.Debug|Win32.Build.0 = Debug|Win32
-		{BEC3C79F-085E-4940-92EB-228107452452}.Release|Win32.ActiveCfg = Release|Win32
-		{BEC3C79F-085E-4940-92EB-228107452452}.Release|Win32.Build.0 = Release|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Debug DLL|Win32.ActiveCfg = Release DLL|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Debug DLL|Win32.Build.0 = Release DLL|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Debug DLL|x64.ActiveCfg = Release DLL|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Debug DLL|x64.Build.0 = Release DLL|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Debug LIB|Win32.ActiveCfg = Debug LIB|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Debug LIB|Win32.Build.0 = Debug LIB|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Debug LIB|x64.ActiveCfg = Debug LIB|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Debug LIB|x64.Build.0 = Debug LIB|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Release DLL|Win32.ActiveCfg = Release DLL|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Release DLL|Win32.Build.0 = Release DLL|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Release DLL|x64.ActiveCfg = Release DLL|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Release DLL|x64.Build.0 = Release DLL|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Release LIB|Win32.ActiveCfg = Release LIB|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Release LIB|Win32.Build.0 = Release LIB|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Release LIB|x64.ActiveCfg = Release LIB|x64
+		{BEC3C79F-085E-4940-92EB-228107452452}.Release LIB|x64.Build.0 = Release LIB|x64
 		{BEC3C79F-085E-4940-92EB-228107452452}.Test|Win32.ActiveCfg = Test|Win32
 		{BEC3C79F-085E-4940-92EB-228107452452}.Test|Win32.Build.0 = Test|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Test|x64.ActiveCfg = Test|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Test|x64.Build.0 = Test|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
