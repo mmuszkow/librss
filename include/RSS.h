@@ -8,13 +8,11 @@
 #include <time.h>
 #ifdef _WIN32
 # include <windows.h>
-#else
-# include <iconv.h> /* iconv is not working with wchar_t and UTF-16 on Windows */
 #endif
 
 #define	RSS_VERSION	0x0002
 
-#ifdef RSS_USE_WSTRING
+#ifdef RSS_USE_WSTRING /* wchar_t */
 # define RSS_char		wchar_t
 # define RSS_strcmp		wcscmp
 # define RSS_strncmp	wcsncmp
@@ -27,8 +25,7 @@
 # define RSS_atoi		_wtoi
 # define RSS_strrchr	wcsrchr
 # define RSS_text(txt)	L##txt
-# define XML_UNICODE_WCHAR_T 1
-#else
+#else /* char */
 # define RSS_char		char
 # define RSS_strcmp		strcmp
 # define RSS_strncmp	strncmp
@@ -41,9 +38,6 @@
 # define RSS_atoi		atoi
 # define RSS_strrchr	strrchr
 # define RSS_text(txt)	txt
-# ifdef XML_UNICODE_WCHAR_T
-#  undef XML_UNICODE_WCHAR_T
-# endif
 #endif /* RSS_USE_WSTRING */
 
 #if defined(_WIN32) && defined(_MSC_VER) /* Visual WIN32 */
@@ -53,6 +47,9 @@
 # else
 #  define RSSPUBFUN
 # endif
+#else /* Unix */
+# define RSSCDECL
+# define RSSPUBFUN
 #endif
 
 typedef unsigned int RSS_u32;

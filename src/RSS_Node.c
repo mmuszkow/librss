@@ -1,4 +1,6 @@
+#include "RSS.h"
 #include "RSS_Node.h"
+#include "RSS_Buffer.h"
 
 RSS_Attribute* RSS_create_attribute(const RSS_char* name, const RSS_char* value)
 {

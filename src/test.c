@@ -13,6 +13,14 @@
 
 #include <stdio.h>
 
+#ifdef RSS_USE_WSTRING
+# define RSS_fopen      _wfopen
+# define RSS_sprintf(x, ...) swprintf(x, 255, __VA_ARGS__)
+#else
+# define RSS_fopen      fopen
+# define RSS_sprintf    sprintf
+#endif
+
 void test_error_handler(RSS_u32 error_level, const RSS_char* error, size_t pos)
 {
 	if(error_level == RSS_EL_ERROR)
@@ -52,9 +60,9 @@ void test_feed(const RSS_char* url)
 	
 	feed = RSS_create_feed(url, test_error_handler);
 	if(feed)
-		RSS_printf(L"test_feed [OK]: %s\n", url);
+		RSS_printf(RSS_text("test_feed [OK]: %s\n"), url);
 	else
-		RSS_printf(L"test_feed [FAIL]: %s\n", url);
+		RSS_printf(RSS_text("test_feed [FAIL]: %s\n"), url);
 	RSS_free_feed(feed);
 }
 
@@ -64,13 +72,13 @@ void test_feed_from_str(const RSS_char* str)
 	
 	feed = RSS_create_feed_from_str(str, test_error_handler);
 	if(feed)
-		RSS_printf(L"test_feed [OK]\n");
+		RSS_printf(RSS_text("test_feed [OK]\n"));
 	else
-		RSS_printf(L"test_feed [FAIL]\n");
+		RSS_printf(RSS_text("test_feed [FAIL]\n"));
 	RSS_free_feed(feed);
 }
 
-void test_buffer()
+void test_buffer(void)
 {
 	RSS_Buffer* buff;
 	int i;
@@ -112,9 +120,9 @@ void test_http(RSS_char* http_address)
 	RSS_printf(RSS_text("test_http [OK]\n"));
 }
 
-int main()
+int main(void)
 {
-	RSS_char	filename[256];
+	RSS_char	filename[261];
 	int			i;
 	FILE*		f;
 
@@ -132,30 +140,29 @@ int main()
 
 	test_buffer();
 
-	/*test_http(L"http://forum.k2t.eu/.xml/?type=rss");
-	test_http(L"forum.k2t.eu/.xml/?type=rss");
-	test_http(L"http://forum.k2t.eu/");
-	test_http(L"http://forum.k2t.eu");
-	test_http(L"forum.k2t.eu/");
-	test_http(L"forum.k2t.eu");
+	/*test_http(RSS_text("http://forum.k2t.eu/.xml/?type=rss"));
+	test_http(RSS_text("forum.k2t.eu/.xml/?type=rss"));
+	test_http(RSS_text("http://forum.k2t.eu/"));
+	test_http(RSS_text("http://forum.k2t.eu"));
+	test_http(RSS_text("forum.k2t.eu/"));
+	test_http(RSS_text("forum.k2t.eu"));*/
 
-	test_feed(L"http://forum.k2t.eu/.xml/?type=rss");
-	test_feed(L"http://www.elektroda.pl/rtvforum/rss.php");
-	test_feed(L"http://www.pinkbike.com/pinkbike_xml_feed.php");
-	test_feed(L"http://www.filmweb.pl/feed/news/latest");
-	test_feed(L"http://feeds.feedburner.com/niebezpiecznik/");*/
+	test_feed(RSS_text("http://forum.k2t.eu/.xml/?type=rss"));
+	test_feed(RSS_text("http://www.elektroda.pl/rtvforum/rss.php"));
+	test_feed(RSS_text("http://www.pinkbike.com/pinkbike_xml_feed.php"));
+	test_feed(RSS_text("http://www.filmweb.pl/feed/news/latest"));
+	test_feed(RSS_text("http://feeds.feedburner.com/niebezpiecznik/"));
 
-	for(i=1;i<=1000;i++) // max 156615, 14341 - stack overflow
+	for(i=1;i<=156615;i++) /* max 156615, TODO: 14341 - stack overflow */
 	{
-		swprintf_s(filename, 255, L"D:\\Projekty_w_C\\librss\\testing_xml\\%d.xml", i);
-		_wfopen_s(&f, filename, L"rb");
+		RSS_sprintf(filename, RSS_text("../testing_xml/%d.xml"), i);
+		f = RSS_fopen(filename, RSS_text("rb"));
 		if(f) 
 		{
 			RSS_Encoding	encoding;
 			char*			encoded;
 			long			file_size;
-			int				utf16len;
-			wchar_t*		utf16;
+			RSS_char*		decoded;
 
 			fseek(f, 0, SEEK_END);
 			file_size = ftell(f);
@@ -166,16 +173,13 @@ int main()
 			fclose(f);
 			encoded[file_size] = 0;
 
-			printf("Testing %d.xml: ", i);
+			RSS_printf(RSS_text("Testing %d.xml: "), i);
 			encoding = RSS_determine_encoding(encoded);
 			if(encoding != RSS_ENC_NO_INFO && encoding != RSS_ENC_UNSUPP)
 			{
-				utf16len = MultiByteToWideChar(encoding, 0, encoded, -1, NULL, 0);
-				utf16 = (wchar_t*)malloc(2 * (utf16len+1));
-				MultiByteToWideChar(CP_UTF8, 0, encoded, -1, utf16, utf16len);
-				
-				test_feed_from_str(utf16);
-				free(utf16);
+                decoded = char2RSS_str(encoded, encoding);
+				test_feed_from_str(decoded);
+				free(decoded);
 			}
 			else
 			{
@@ -183,12 +187,22 @@ int main()
 				test_error_handler(RSS_EL_ERROR, RSS_text("Unknown encoding"), RSS_NO_POS_INFO);
 			}
 			free(encoded);
-		}
-	}
+		} /* if(f) */
+		else
+            RSS_printf(RSS_text("test_buffer [FAIL], cannot open file %s\n"), filename);
+	} /* for(all_xml) */
 
+#ifdef _WIN32
 	getch();
+#endif
 
 	return 0;
 }
 
+#else
+int main(void)
+{
+    return 0;
+}
 #endif
+

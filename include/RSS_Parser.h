@@ -39,7 +39,7 @@ typedef enum RSS_Parser_state
 } RSS_Parser_state;
 
 /** Parses DTD inside SGML */
-RSS_Parser_state RSS_parse_DTD(const RSS_char* sgml, size_t* pos);
+void RSS_parse_DTD(const RSS_char* sgml, size_t* pos, size_t length, RSS_Buffer* tagText);
 
 /** Parses encoding info inside SGML */
 RSS_Parser_state RSS_parse_encoding(const RSS_char* sgml, size_t* pos);

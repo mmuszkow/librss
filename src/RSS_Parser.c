@@ -1,4 +1,6 @@
+#include "RSS.h"
 #include "RSS_Parser.h"
+#include "RSS_Buffer.h"
 
 /** Determines encoding of SGML file */
 RSS_Encoding RSS_determine_encoding(const char* sgml)
@@ -6,9 +8,18 @@ RSS_Encoding RSS_determine_encoding(const char* sgml)
 	size_t	length, pos;
 
 	length = strlen(sgml);
+	pos = 0;
 
+    while(  pos < length && 
+            (sgml[pos] == ' ' || sgml[pos] == '\n' || 
+            sgml[pos] == '\r' || sgml[pos] == '\t'))
+        pos++;
+        
+    if(pos == length || pos + 1 == length)
+        return RSS_ENC_NO_INFO;
+        
 	/** Check if there is an encoding header */
-	if(length < 3 || sgml[0] != '<' || sgml[1] != '?')
+	if(sgml[pos] != '<' || sgml[pos+1] != '?')
 		return RSS_ENC_NO_INFO;
 
 	/* Find encoding= */
@@ -19,7 +30,7 @@ RSS_Encoding RSS_determine_encoding(const char* sgml)
 		{
 			/* encoding= */
 			if(	pos + 9 < length && 
-				(strncmp(&sgml[pos], "encoding=", 9) == 0))
+				(strncasecmp(&sgml[pos], "encoding=", 9) == 0))
 			{
 				/* Move to the string with encoding name */
 				pos += 9;
@@ -27,11 +38,11 @@ RSS_Encoding RSS_determine_encoding(const char* sgml)
 					pos++;
 
 				/* UTF-8 */
-				if(pos + 5 < length && strnicmp(&sgml[pos], "utf-8", 5) == 0)
+				if(pos + 5 < length && strncasecmp(&sgml[pos], "utf-8", 5) == 0)
 					return RSS_ENC_UTF8;
 
 				/* Iso-8859-? */
-				if(pos + 10 < length && strnicmp(&sgml[pos], "iso-8859-", 9) == 0)
+				if(pos + 10 < length && strncasecmp(&sgml[pos], "iso-8859-", 9) == 0)
 				{
 					pos += 9;
 					switch(sgml[pos])
@@ -50,7 +61,7 @@ RSS_Encoding RSS_determine_encoding(const char* sgml)
 				}
 
 				/* Windows-? */
-				if(pos + 12 < length && strnicmp(&sgml[pos], "windows-125", 11) == 0)
+				if(pos + 12 < length && strncasecmp(&sgml[pos], "windows-125", 11) == 0)
 				{
 					pos += 11;
 					switch(sgml[pos])
@@ -78,11 +89,41 @@ RSS_Encoding RSS_determine_encoding(const char* sgml)
 	return RSS_ENC_UTF8;
 }
 
-/** Parses DTD inside SGML */
-RSS_Parser_state RSS_parse_DTD(const RSS_char* sgml, size_t* pos)
+
+/** Parses DTD inside tag */
+void RSS_parse_DTD(const RSS_char* sgml, size_t* pos, size_t length, RSS_Buffer* tagText)
 {
-	while(sgml[*pos] != RSS_text('>')) (*pos)++;
-	return FINDING_START_TAG;
+	int start_count;
+
+	/* works only with  <![CDATA[text text text]]> */
+	if(*pos < length - 8 && RSS_strncmp(&sgml[*pos], RSS_text("![CDATA["), 8) == 0)
+	{
+		(*pos) += 8;
+		while(*pos < length && sgml[*pos] != RSS_text(']'))
+		{
+			RSS_add_buffer(tagText, sgml[*pos]);
+			(*pos)++;
+		}
+	}
+
+	/* skip rest */
+				
+	start_count = 1;
+	while(*pos < length)
+	{
+		switch(sgml[*pos])
+		{
+		case RSS_text('<'):
+			start_count++;
+			break;
+		case RSS_text('>'):
+			start_count--;									
+			break;
+		}
+		if(start_count == 0)
+			break;
+		(*pos)++;
+	}
 }
 
 /** Simple SGML parser */
@@ -128,8 +169,17 @@ RSS_Node* RSS_create_sgml_tree(const RSS_char* sgml, RSS_error_handler handler)
 		switch(state)
 		{
 		case FINDING_START_TAG:
-			if(sgml[pos]==RSS_text('<'))
+			switch(sgml[pos])
+			{
+			case RSS_text('<'):
 				state = TAG_TYPE;
+				break;
+			case RSS_text('\r'):
+			case RSS_text('\n'):
+			case RSS_text('\t'):
+			case RSS_text(' '):
+				break;
+			}
 			break;
 		case TAG_TYPE:
 			switch(sgml[pos])
@@ -145,8 +195,26 @@ RSS_Node* RSS_create_sgml_tree(const RSS_char* sgml, RSS_error_handler handler)
 						state = COMMENT_START;
 					else
 					{
-						pos--;
-						state = RSS_parse_DTD(sgml, &pos);
+						/* DTD - skip it */
+						int start_count;
+				
+						start_count = 1;
+						while(pos < length)
+						{
+							switch(sgml[pos])
+							{
+							case RSS_text('<'):
+								start_count++;
+								break;
+							case RSS_text('>'):
+								start_count--;									
+								break;
+							}
+							if(start_count == 0)
+								break;
+							pos++;
+						}
+						state = FINDING_START_TAG;
 					}
 					break;
 				/** Encoding - we already know it */
@@ -165,7 +233,14 @@ RSS_Node* RSS_create_sgml_tree(const RSS_char* sgml, RSS_error_handler handler)
 			switch(sgml[pos])
 			{
 				case RSS_text('<'):
-					if(tagText->len > 0)
+					if(pos + 1 < length && sgml[pos+1] == '!')
+					{
+						pos++;
+						RSS_parse_DTD(sgml, &pos, length, tagText);
+						state = TAG_TEXT;
+						break;
+					}
+					else if(tagText->len > 0)
 					{
 						stack.top->node->value = RSS_strdup(tagText->str);
 						RSS_clear_buffer(tagText);
@@ -251,11 +326,13 @@ RSS_Node* RSS_create_sgml_tree(const RSS_char* sgml, RSS_error_handler handler)
 		case ATTRIBUTE_START:
 			switch(sgml[pos])
 			{
-				case RSS_text(' '): break; // spacje przeskakujemy
+				case RSS_text(' '): \
+
+				    break; /* we skip spaces */
 				case RSS_text('>'): 
 					state = TAG_TEXT; 
 					break;
-				case RSS_text('/'): // tagi nie potrzebujace zamkniecia
+				case RSS_text('/'): /* tags that don't need closing */
 					RSS_pop_stack(&stack);
 					if(++pos < length && sgml[pos] == RSS_text('>'))
 						state = FINDING_START_TAG;
@@ -292,7 +369,7 @@ RSS_Node* RSS_create_sgml_tree(const RSS_char* sgml, RSS_error_handler handler)
 		case FINDING_QUOTE:
 			switch(sgml[pos])
 			{
-				case RSS_text(' '): // spacje pomijamy
+				case RSS_text(' '): /* skip spaces */
 					break;
 				case RSS_text('\''):
 					state = INSIDE_COMMAS;
@@ -324,8 +401,7 @@ RSS_Node* RSS_create_sgml_tree(const RSS_char* sgml, RSS_error_handler handler)
 		case INSIDE_COMMAS:
 			switch(sgml[pos])
 			{
-			//case '>': 
-			//	throw XMLException(XMLException::Data,"Non-closed quote",pos);
+			/*case '>': TODO: warning: Non-closed quote */
 			case RSS_text('\''): 
 				RSS_add_attribute(stack.top->node, attribName->str, attribValue->str);
 				state = ATTRIBUTE_START; 
@@ -352,7 +428,7 @@ RSS_Node* RSS_create_sgml_tree(const RSS_char* sgml, RSS_error_handler handler)
 			if(sgml[pos]==RSS_text('-'))
 				state = PROPER_END;
 			else
-				state = INSIDE_COMMENT; //throw XMLException(XMLException::Data,"\'-\' in comment expected",pos);
+				state = INSIDE_COMMENT; /* TODO: warning: - in comment expected */
 			break;
 		case PROPER_END:
 			if(sgml[pos]==RSS_text('>'))

@@ -479,6 +479,7 @@ RSS_Feed* RSS_create_feed(const RSS_char* http_address, RSS_error_handler handle
 		return NULL;
 	}
 
+    page_content = NULL;
 	if((http_res = RSS_http_get_page(url, &page_content)) != RSS_HTTP_OK)
 	{
 		if(handler)
@@ -503,6 +504,9 @@ RSS_Feed* RSS_create_feed(const RSS_char* http_address, RSS_error_handler handle
 		}
 
 		RSS_free_url(url);
+        if(page_content) /* page could be retrieved but for example http code was 403 */
+            free(page_content);
+
 		return NULL;
 	}
 
@@ -512,16 +516,27 @@ RSS_Feed* RSS_create_feed(const RSS_char* http_address, RSS_error_handler handle
 		if(handler)
 			handler(RSS_EL_ERROR, RSS_text("Unknown or unsupported encoding"), RSS_NO_POS_INFO);
 		
+		RSS_free_url(url);
 		free(page_content);
+		
 		return NULL;
 	}
 
 	converted_page = char2RSS_str(page_content, enc);
-	feed = RSS_create_feed_from_str(converted_page, handler);
-
+	if(!converted_page)
+	{
+	    if(handler)
+	        handler(RSS_EL_ERROR, RSS_text("Encoding conversion error"), RSS_NO_POS_INFO);
+	    feed = NULL;
+    }
+    else
+    {
+    	feed = RSS_create_feed_from_str(converted_page, handler);
+       	free(converted_page);
+    }
+	
 	RSS_free_url(url);
 	free(page_content);
-	free(converted_page);
 
 	return feed;
 }
@@ -541,7 +556,9 @@ RSS_Feed* RSS_create_feed_from_str(const RSS_char* content, RSS_error_handler ha
 	{
 		if(handler)
 			handler(RSS_EL_ERROR, RSS_text("Empty document"), RSS_NO_POS_INFO);
-		return NULL;
+			
+        RSS_free_node(root);
+    	return NULL;
 	}
 
 	if(RSS_strcmp(root->children->name, RSS_text("rss")) == 0)

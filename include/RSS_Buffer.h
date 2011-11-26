@@ -3,6 +3,20 @@
 
 #include "RSS.h"
 
+/* For ANSI C */
+#ifndef HAVE_STRDUP
+char* RSS_my_strdup(const char* str);
+# define strdup RSS_my_strdup
+# define HAVE_STRDUP
+#endif
+
+#ifndef HAVE_STRNCASECMP
+# include <ctype.h>
+int RSS_my_strncasecmp(const char* s1, const char* s2, size_t n);
+# define strncasecmp RSS_my_strncasecmp
+# define HAVE_STRNCASECMP
+#endif
+
 typedef struct RSS_Buffer
 {
 	/** Text */
@@ -69,6 +83,9 @@ typedef enum RSS_Encoding
 	RSS_ENC_WINDOWS_1258 = 1258
 	
 } RSS_Encoding;
+
+/** Returns the encoding name or NULL if unknown/unspupported */
+RSS_char* RSS_get_encoding_name(RSS_Encoding enc);
 
 /** Creates new char* (with malloc) from RSS_char*) */
 char* RSS_str2char(const RSS_char* str);

@@ -31,8 +31,6 @@ typedef enum RSS_Http_error
 {
 		/** Everything OK */
 		RSS_HTTP_OK,
-		/** Windows only, could not initialize winsock */
-		RSS_HTTP_WSASTARTUP,
 		/** Could not create socket */
 		RSS_HTTP_SOCKET,
 		/** Could not resolve host name */
@@ -59,6 +57,7 @@ typedef enum RSS_Http_error
 /** Saves page content from url to buffer
   * Buffer don't need to be preallocated
   * Why not to file? Computers now have > 2GB RAM
+  * Under Windows: REMEMBER TO INIT WINSOCK (WSAStartup, WSACleanUp)
   */
 RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buff);
 

@@ -1,15 +1,27 @@
-#include "RSS_Http.h"
-
 #include "RSS.h"
 #include "RSS_Buffer.h"
 #include "RSS_Http.h"
 
 #ifndef RSS_NO_HTTP_SUPPORT
 
-#if defined(_WIN32) && defined(_MSC_VER)
-# pragma comment(lib, "Ws2_32.lib")
+#ifdef _WIN32
+# include <winsock.h>
+# define CLOSESOCKET closesocket
+# ifdef _MSC_VER
+#  pragma comment(lib, "Ws2_32.lib")
+# endif
 #else
-# warning "Link socket library to the project"
+# include <sys/types.h>
+# include <sys/socket.h>
+# include <netinet/in.h>
+# include <netdb.h>
+# include <unistd.h>
+# define SOCKET          int
+# define SOCKADDR        struct sockaddr
+# define SOCKADDR_IN     struct sockaddr_in
+# define INVALID_SOCKET  -1
+# define SOCKET_ERROR    -1
+# define CLOSESOCKET     close
 #endif
 
 RSS_Url* RSS_create_url(const RSS_char* url)
@@ -34,7 +46,10 @@ RSS_Url* RSS_create_url(const RSS_char* url)
 
 	/* find path */
 	tmp_path = RSS_strstr(tmp_host, RSS_text("/"));
-	rss_url->path = tmp_path ? RSS_str2char(tmp_path) : strdup("/");
+	if(tmp_path)
+	    rss_url->path = RSS_str2char(tmp_path);
+	else
+	    rss_url->path = strdup("/");
 
 	/* find host */
 	len = RSS_strlen(tmp_host) - strlen(rss_url->path);
@@ -71,11 +86,9 @@ void RSS_free_url(RSS_Url* url)
 	free(url);
 }
 
+/* Under Windows: REMEMBER TO INIT WINSOCK (WSAStartup, WSACleanUp) */
 RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 {
-#ifdef _WIN32
-	WSADATA		WSAData;
-#endif
 	SOCKET		sock;
 	struct hostent*	remoteHost;
 	SOCKADDR_IN	sin;
@@ -90,12 +103,6 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 	if(!url || !url->host || !url->path)
 		return RSS_HTTP_BAD_ARG;
 
-	/* Windows only winsock init */
-#ifdef _WIN32
-	if(WSAStartup(MAKEWORD(2,0), &WSAData) != 0)
-		return RSS_HTTP_WSASTARTUP;
-#endif
-
 	/* Create socket */
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock == INVALID_SOCKET)
@@ -105,25 +112,26 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 	remoteHost = gethostbyname(url->host);		
 	if(remoteHost == NULL)
 	{
-		closesocket(sock);
+		CLOSESOCKET(sock);
 		return RSS_HTTP_GETHOSTBYNAME;
 	}
 
 	if(remoteHost->h_addrtype != AF_INET)
 	{
-		closesocket(sock);
+		CLOSESOCKET(sock);
 		return RSS_HTTP_NOT_IPV4;
 	}
 
 	/* Connect */
 	memset(&sin, 0, sizeof(SOCKADDR_IN));
-	sin.sin_addr.s_addr = *(u_long *) remoteHost->h_addr;
+	/* TODO: this can be not x64 compatybile */
+	sin.sin_addr.s_addr = *(unsigned long*)remoteHost->h_addr_list[0];
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(80);
 
 	if(connect(sock, (SOCKADDR *)&sin, sizeof(sin)) == SOCKET_ERROR)
 	{
-		closesocket(sock);
+		CLOSESOCKET(sock);
 		return RSS_HTTP_CONN_FAILED;
 	}
 
@@ -144,7 +152,7 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 	if(send(sock, header_buff, strlen(header_buff), 0) <= 0)
 	{
 		free(header_buff);
-		closesocket(sock);
+		CLOSESOCKET(sock);
 		return RSS_HTTP_SEND_FAILED;
 	}
 	free(header_buff);
@@ -153,7 +161,7 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 	received = 0;
 	tmp_buff = (char*)malloc(RSS_HTTP_INITIAL_BUFFER_SIZE);
 	buffer_size = RSS_HTTP_INITIAL_BUFFER_SIZE;
-	while((s = recv(sock, recv_buff, 4096, 0)) != 0)
+	while((s = recv(sock, recv_buff, 4096, 0)) > 0)
 	{
 		if(received + s >= buffer_size)
 		{
@@ -180,14 +188,14 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 	/* Check return code */
 	if(received < 13)
 	{
-		closesocket(sock);
+		CLOSESOCKET(sock);
 		free(tmp_buff);
 		return RSS_HTTP_NOT_200;
 	}
 
 	if(tmp_buff[9] != '2' || tmp_buff[10] != '0' || tmp_buff[11] != '0')
 	{
-		closesocket(sock);
+		CLOSESOCKET(sock);
 		free(tmp_buff);
 		return RSS_HTTP_NOT_200;
 	}
@@ -195,18 +203,15 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 	data = strstr(tmp_buff, "\r\n\r\n");
 	if(!data)
 	{
-		closesocket(sock);
+		CLOSESOCKET(sock);
 		free(tmp_buff);
 		return RSS_HTTP_NO_DATA;
 	}
 
 	*buffer = strdup(data + 4);
 
-	closesocket(sock);
+	CLOSESOCKET(sock);
 	free(tmp_buff);
-#ifdef _WIN32
-	WSACleanup();
-#endif
 
 	return RSS_HTTP_OK;
 }
