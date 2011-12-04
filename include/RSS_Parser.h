@@ -39,7 +39,7 @@ typedef enum RSS_Parser_state
 } RSS_Parser_state;
 
 /** Parses DTD inside SGML */
-void RSS_parse_DTD(const RSS_char* sgml, size_t* pos, size_t length, RSS_Buffer* tagText);
+size_t RSS_parse_DTD(const RSS_char* sgml, size_t pos, size_t length, RSS_Buffer* tagText);
 
 /** Parses encoding info inside SGML */
 RSS_Parser_state RSS_parse_encoding(const RSS_char* sgml, size_t* pos);
@@ -49,6 +49,5 @@ RSS_Node* RSS_create_sgml_tree(const RSS_char* sgml, RSS_error_handler handler);
 
 /** Determines encoding of the xml document content in char* */
 RSS_Encoding RSS_determine_encoding(const char* sgml);
-
 
 #endif /* __RSS_PARSER_H__ */

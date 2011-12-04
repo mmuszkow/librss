@@ -11,10 +11,14 @@ char* RSS_my_strdup(const char* str);
 #endif
 
 #ifndef HAVE_STRNCASECMP
-# include <ctype.h>
+# ifdef _WIN32
+#  define strncasecmp _strnicmp
+# else
+#  include <ctype.h>
 int RSS_my_strncasecmp(const char* s1, const char* s2, size_t n);
-# define strncasecmp RSS_my_strncasecmp
-# define HAVE_STRNCASECMP
+#  define strncasecmp RSS_my_strncasecmp
+#  define HAVE_STRNCASECMP
+#endif
 #endif
 
 typedef struct RSS_Buffer

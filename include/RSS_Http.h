@@ -67,4 +67,10 @@ RSS_Url*	RSS_create_url(const RSS_char* url);
 /** Releases created RSS_Url*/
 void		RSS_free_url(RSS_Url* url);
 
+/** Html decode */
+RSS_char*	RSS_html_decode(const RSS_char* str);
+
+/** Url decode */
+RSS_char*	RSS_url_decode(const RSS_char* str);
+
 #endif

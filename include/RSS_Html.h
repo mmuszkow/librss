@@ -1,0 +1,37 @@
+#ifndef __RSS_HTML_H__
+#define __RSS_HTML_H__
+
+#include "RSS.h"
+
+/* ISO 10646 */
+
+/** For stroing info about html named entities such as &amp; , &quote; etc */
+typedef struct RSS_Html_entity
+{
+	RSS_char	encoded[9]; /* longest entity len = 8 -> &yacute; */
+	RSS_char	decoded;
+	size_t		len;
+} RSS_Html_entity;
+
+#define RSS_HTML_ENTITIES_TABLE_LEN	7
+
+static const RSS_Html_entity entities[RSS_HTML_ENTITIES_TABLE_LEN] = {
+	{ RSS_text("&lt;"), RSS_text('<'), 4 },
+	{ RSS_text("&gt;"), RSS_text('>'), 4 },
+	{ RSS_text("&lt;"), RSS_text('<'), 4 },
+	{ RSS_text("&amp;"), RSS_text('&'), 5 },
+	{ RSS_text("&quot;"), RSS_text('"'), 6 },
+	{ RSS_text("&nbsp;"), RSS_text(' '), 6 },
+	{ RSS_text("&apos;"), RSS_text('\''), 6 }
+};
+
+/** Parses &#1234; */
+RSS_char RSS_html_entity_parse_dec(const RSS_char* str, size_t* pos);
+
+/** Parses &#x1234; */
+RSS_char RSS_html_entity_parse_hex(const RSS_char* str, size_t* pos);
+
+/** Html decode */
+RSS_char* RSS_html_decode(const RSS_char* str);
+
+#endif

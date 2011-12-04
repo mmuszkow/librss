@@ -1,6 +1,7 @@
 #include "RSS.h"
 #include "RSS_Parser.h"
 #include "RSS_Buffer.h"
+#include "RSS_Http.h"
 
 /** Determines encoding of SGML file */
 RSS_Encoding RSS_determine_encoding(const char* sgml)
@@ -91,39 +92,47 @@ RSS_Encoding RSS_determine_encoding(const char* sgml)
 
 
 /** Parses DTD inside tag */
-void RSS_parse_DTD(const RSS_char* sgml, size_t* pos, size_t length, RSS_Buffer* tagText)
+size_t RSS_parse_DTD(const RSS_char* sgml, size_t start_pos, size_t length, RSS_Buffer* tagText)
 {
-	int start_count;
+	int		start_count;
+	size_t	pos;
+
+	pos = start_pos;
 
 	/* works only with  <![CDATA[text text text]]> */
-	if(*pos < length - 8 && RSS_strncmp(&sgml[*pos], RSS_text("![CDATA["), 8) == 0)
+	start_count = 1;
+	if(pos < length - 8 && RSS_strncmp(&sgml[pos], RSS_text("![CDATA["), 8) == 0)
 	{
-		(*pos) += 8;
-		while(*pos < length && sgml[*pos] != RSS_text(']'))
+		pos += 8;
+		while(pos < length && start_count != 0)
 		{
-			RSS_add_buffer(tagText, sgml[*pos]);
-			(*pos)++;
+			if(sgml[pos] == RSS_text('['))
+				start_count++;
+			else if(sgml[pos] == RSS_text(']'))
+				start_count--;
+			
+			if(start_count != 0)
+				RSS_add_buffer(tagText, sgml[pos]);
+			pos++;
 		}
 	}
 
-	/* skip rest */
-				
+	/* skip rest */	
 	start_count = 1;
-	while(*pos < length)
+	while(pos < length && start_count != 0)
 	{
-		switch(sgml[*pos])
-		{
-		case RSS_text('<'):
+		if(sgml[pos] == RSS_text('<'))
 			start_count++;
-			break;
-		case RSS_text('>'):
+		else if(sgml[pos] == RSS_text('>'))
+		{
 			start_count--;									
-			break;
+			if(start_count == 0)
+				break;
 		}
-		if(start_count == 0)
-			break;
-		(*pos)++;
+		pos++;
 	}
+
+	return pos;
 }
 
 /** Simple SGML parser */
@@ -235,14 +244,13 @@ RSS_Node* RSS_create_sgml_tree(const RSS_char* sgml, RSS_error_handler handler)
 				case RSS_text('<'):
 					if(pos + 1 < length && sgml[pos+1] == '!')
 					{
-						pos++;
-						RSS_parse_DTD(sgml, &pos, length, tagText);
+						pos = RSS_parse_DTD(sgml, pos + 1, length, tagText);
 						state = TAG_TEXT;
 						break;
 					}
 					else if(tagText->len > 0)
 					{
-						stack.top->node->value = RSS_strdup(tagText->str);
+						stack.top->node->value = RSS_html_decode(tagText->str);
 						RSS_clear_buffer(tagText);
 					}
 					state = TAG_TYPE;

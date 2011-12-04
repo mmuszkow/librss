@@ -149,7 +149,7 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 		"%s" \
 		RSS_HTTP_HEADER3, url->path, url->host);
 	
-	if(send(sock, header_buff, strlen(header_buff), 0) <= 0)
+	if(send(sock, header_buff, (int)strlen(header_buff), 0) <= 0)
 	{
 		free(header_buff);
 		CLOSESOCKET(sock);
@@ -193,6 +193,7 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 		return RSS_HTTP_NOT_200;
 	}
 
+	/* TODO: 50x - redirection */
 	if(tmp_buff[9] != '2' || tmp_buff[10] != '0' || tmp_buff[11] != '0')
 	{
 		CLOSESOCKET(sock);
@@ -217,3 +218,77 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer)
 }
 
 #endif
+
+RSS_char* RSS_url_decode(const RSS_char* url)
+{
+	RSS_Buffer*	temp;
+	size_t		pos;
+	RSS_char*	decoded;
+
+	if(!url)
+		return NULL;
+
+	if(RSS_strstr(url, RSS_text("%")) == NULL)
+		return RSS_strdup(url);
+
+	temp = RSS_create_buffer();
+	pos = 0;
+	while(url[pos] != 0)
+	{
+		if(url[pos] == RSS_text('+'))
+		{
+			RSS_add_buffer(temp, RSS_text(' '));
+			pos++;
+		} else if(url[pos] == RSS_text('%') && url[pos+1] != 0 && url[pos+2] != 0)
+		{
+			RSS_char	hex[2];
+			size_t		j;
+			int			valid;
+
+			valid = 1;
+
+			for(j=0; j<2; j++)
+				hex[j] = url[pos+j+1];
+
+			for(j=0; j<2; j++)
+			{
+				if(hex[j] >= L'0' && hex[j] <= L'9')
+					hex[j] -= 0x30;
+				else if(hex[j] >= L'A' && hex[j] <= L'F')
+					hex[j] -= 55;
+				else if(hex[j] >= L'a' && hex[j] <= L'f')
+					hex[j] -= 87;
+				else
+				{
+					valid = 0;
+					break;
+				}
+			}
+			
+			if(valid == 1)
+			{
+				RSS_add_buffer(temp, (hex[0]<<4) + hex[1]);
+				pos += 3;
+			}
+			else
+			{
+				RSS_add_buffer(temp, RSS_text('%'));
+				pos++;
+			}
+		}
+		else
+		{
+			RSS_add_buffer(temp, url[pos]);
+			pos++;
+		}
+	}
+
+	if(temp->len > 0)
+		decoded = RSS_strdup(temp->str);
+	else
+		decoded = NULL;
+
+	RSS_free_buffer(temp);
+
+	return decoded;
+}

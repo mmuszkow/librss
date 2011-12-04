@@ -35,8 +35,8 @@ Global
 		{BEC3C79F-085E-4940-92EB-228107452452}.Release LIB|x64.Build.0 = Release LIB|x64
 		{BEC3C79F-085E-4940-92EB-228107452452}.Test|Win32.ActiveCfg = Test|Win32
 		{BEC3C79F-085E-4940-92EB-228107452452}.Test|Win32.Build.0 = Test|Win32
-		{BEC3C79F-085E-4940-92EB-228107452452}.Test|x64.ActiveCfg = Test|Win32
-		{BEC3C79F-085E-4940-92EB-228107452452}.Test|x64.Build.0 = Test|Win32
+		{BEC3C79F-085E-4940-92EB-228107452452}.Test|x64.ActiveCfg = Test|x64
+		{BEC3C79F-085E-4940-92EB-228107452452}.Test|x64.Build.0 = Test|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

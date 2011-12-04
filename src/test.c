@@ -62,7 +62,7 @@ void test_feed(const RSS_char* url)
 	if(feed)
 		RSS_printf(RSS_text("test_feed [OK]: %s\n"), url);
 	else
-		RSS_printf(RSS_text("test_feed [FAIL]: %s\n"), url);
+		RSS_printf(RSS_text("test_feed [OK] - wrong format: %s\n"), url);
 	RSS_free_feed(feed);
 }
 
@@ -74,7 +74,7 @@ void test_feed_from_str(const RSS_char* str)
 	if(feed)
 		RSS_printf(RSS_text("test_feed [OK]\n"));
 	else
-		RSS_printf(RSS_text("test_feed [FAIL]\n"));
+		RSS_printf(RSS_text("test_feed [OK] - wrong format\n"));
 	RSS_free_feed(feed);
 }
 
@@ -140,12 +140,12 @@ int main(void)
 
 	test_buffer();
 
-	/*test_http(RSS_text("http://forum.k2t.eu/.xml/?type=rss"));
+	test_http(RSS_text("http://forum.k2t.eu/.xml/?type=rss"));
 	test_http(RSS_text("forum.k2t.eu/.xml/?type=rss"));
 	test_http(RSS_text("http://forum.k2t.eu/"));
 	test_http(RSS_text("http://forum.k2t.eu"));
 	test_http(RSS_text("forum.k2t.eu/"));
-	test_http(RSS_text("forum.k2t.eu"));*/
+	test_http(RSS_text("forum.k2t.eu"));
 
 	test_feed(RSS_text("http://forum.k2t.eu/.xml/?type=rss"));
 	test_feed(RSS_text("http://www.elektroda.pl/rtvforum/rss.php"));
@@ -155,7 +155,7 @@ int main(void)
 
 	for(i=1;i<=156615;i++) /* max 156615, TODO: 14341 - stack overflow */
 	{
-		RSS_sprintf(filename, RSS_text("../testing_xml/%d.xml"), i);
+		RSS_sprintf(filename, RSS_text("../../testing_xml/%d.xml"), i);
 		f = RSS_fopen(filename, RSS_text("rb"));
 		if(f) 
 		{
@@ -200,9 +200,8 @@ int main(void)
 }
 
 #else
-int main(void)
-{
-    return 0;
-}
-#endif
 
+/* To prevent compiler warning */
+void dummy(void);
+
+#endif

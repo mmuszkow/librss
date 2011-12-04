@@ -171,6 +171,9 @@ char* RSS_my_strdup(const char* str)
     size_t  n;
     char*   dup;
     
+    if(!str)
+        return NULL;
+    
     n = strlen(str) + 1;
     dup = (char*)malloc(n);
     
@@ -192,7 +195,7 @@ int RSS_my_strncasecmp(const char* s1, const char* s2, size_t n)
         c1 = (unsigned char)tolower((unsigned char)c1);
         c2 = (unsigned char)tolower((unsigned char)c2);
     }
-    while((c1 == c2) && (c1 != '\0') && (i++ < n));
+    while((c1 == c2) && (c1 != '\0') && (i++ < n-1));
     
     return (int)(c1-c2);
 }

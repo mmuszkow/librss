@@ -10,6 +10,11 @@
 # include <windows.h>
 #endif
 
+/* Disable some stupid anti-POSIX warnings */
+#ifdef _MSC_VER
+# pragma warning(disable:4996)
+#endif
+
 #define	RSS_VERSION	0x0002
 
 #ifdef RSS_USE_WSTRING /* wchar_t */
@@ -19,11 +24,12 @@
 # define RSS_strcpy		wcscpy
 # define RSS_strstr		wcsstr
 # define RSS_strlen		wcslen
-# define RSS_strdup		_wcsdup
+# define RSS_strdup		wcsdup
 # define RSS_printf		wprintf
 # define RSS_ctime		_wctime
 # define RSS_atoi		_wtoi
 # define RSS_strrchr	wcsrchr
+# define RSS_strncasecmp wcsnicmp
 # define RSS_text(txt)	L##txt
 #else /* char */
 # define RSS_char		char
@@ -37,6 +43,11 @@
 # define RSS_ctime		ctime
 # define RSS_atoi		atoi
 # define RSS_strrchr	strrchr
+# ifdef _WIN32
+#  define RSS_strncasecmp strnicmp
+# else
+#  define RSS_strncasecmp strncasecmp
+# endif
 # define RSS_text(txt)	txt
 #endif /* RSS_USE_WSTRING */
 
@@ -82,8 +93,10 @@ RSSPUBFUN time_t RSSCDECL	RSS_parse_RFC822_Date(const RSS_char* str, RSS_error_h
 /** Date and Time Specification of RFC 3339 format to time_t format */
 RSSPUBFUN time_t RSSCDECL	RSS_parse_RFC3339_Date(const RSS_char* str, RSS_error_handler handler);
 
+#ifndef RSS_NO_HTTP_SUPPORT
 /** Creates parsed feed from URL */
 RSSPUBFUN RSS_Feed* RSSCDECL	RSS_create_feed(const RSS_char* http_address, RSS_error_handler handler);
+#endif
 
 /** Creates parsed feed from document content */
 RSSPUBFUN RSS_Feed* RSSCDECL	RSS_create_feed_from_str(const RSS_char* content, RSS_error_handler handler);

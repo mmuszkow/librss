@@ -2,79 +2,137 @@
 
 #include "RSS_Parser.h"
 #include "RSS_Http.h"
+#include "RSS_Date.h"
 
 time_t RSS_parse_RFC822_Date(const RSS_char* str, RSS_error_handler handler)
 {
 	RSS_char*	tmp;
-	RSS_char		copy[25];
+	RSS_char*	timezone;
+	RSS_char	copy[32];
+	size_t		length;
 	struct tm	timeinfo;
+	int			i;
+	size_t		year_offset;
+	time_t		timezone_diff;
 
-	if (RSS_strlen(str) != 29)
+	if(!str)
+		return 0;
+
+	/* strip day name, useless */
+	for(i=0; i<7; i++)
+	{
+	    /* double parentheses to avoid compiler warning */
+		if((tmp = RSS_strstr(str, days_names[i])))
+			break;
+	}
+	if(tmp) tmp += 3; else tmp = (RSS_char*)str;
+	if(tmp[0] == RSS_text(',')) tmp++;
+	if(tmp[0] == RSS_text(' ')) tmp++;
+
+	if(RSS_strlen(tmp) > 31)
 	{
 		if(handler)
-			handler(RSS_EL_WARNING, RSS_text("Failed to parse RFC822 Date, wrong length"), RSS_NO_POS_INFO);
+			handler(RSS_EL_WARNING, RSS_text("Failed to parse RFC822 date, wrong length"), RSS_NO_POS_INFO);
 		return 0;
 	}
 
-	tmp = RSS_strstr(str, RSS_text(", "));
-	if(!tmp)
-	{
-		if(handler)
-			handler(RSS_EL_WARNING, RSS_text("Failed to parse RFC822 Date, no day information"), RSS_NO_POS_INFO);
-		return 0;
-	}
-
-	tmp = &tmp[2];
 	RSS_strcpy(copy, tmp);
-	copy[2] = 0;
-	copy[6] = 0;
-	copy[11] = 0;
-	copy[14] = 0;
-	copy[17] = 0;
-	copy[20] = 0;
+	length = RSS_strlen(copy);
+
+	if(length < 20)
+	{
+		if(handler)
+			handler(RSS_EL_WARNING, RSS_text("Failed to parse RFC822 date, wrong length"), RSS_NO_POS_INFO);
+		return 0;
+	}
+
+	copy[2] = 0; /* day */
+	copy[6] = 0; /* named month */
+	
+	year_offset = 0;
+	if(copy[9] != RSS_text(' ')) /* 2 or 4 digit year, not in standard but very popular */
+		year_offset += 2;
+	copy[9+year_offset] = 0; /* year */
+	copy[12+year_offset] = 0; /* hour */
+	copy[15+year_offset] = 0; /* min */
+	copy[18+year_offset] = 0; /* sec */
 
 	memset(&timeinfo, 0, sizeof(struct tm));
 	timeinfo.tm_mday = RSS_atoi(&copy[0]);
-	if(RSS_strcmp(&copy[3],RSS_text("Jan"))==0) /* parsing month name, english only */
-		timeinfo.tm_mon = 0;
-	else if(RSS_strcmp(&copy[3],RSS_text("Feb"))==0)
-		timeinfo.tm_mon = 1;
-	else if(RSS_strcmp(&copy[3],RSS_text("Mar"))==0)
-		timeinfo.tm_mon = 2;
-	else if(RSS_strcmp(&copy[3],RSS_text("Apr"))==0)
-		timeinfo.tm_mon = 3;
-	else if(RSS_strcmp(&copy[3],RSS_text("May"))==0)
-		timeinfo.tm_mon = 4;
-	else if(RSS_strcmp(&copy[3],RSS_text("Jun"))==0)
-		timeinfo.tm_mon = 5;
-	else if(RSS_strcmp(&copy[3],RSS_text("Jul"))==0)
-		timeinfo.tm_mon = 6;
-	else if(RSS_strcmp(&copy[3],RSS_text("Aug"))==0)
-		timeinfo.tm_mon = 7;
-	else if(RSS_strcmp(&copy[3],RSS_text("Sep"))==0)
-		timeinfo.tm_mon = 8;
-	else if(RSS_strcmp(&copy[3],RSS_text("Oct"))==0)
-		timeinfo.tm_mon = 9;
-	else if(RSS_strcmp(&copy[3],RSS_text("Nov"))==0)
-		timeinfo.tm_mon = 10;
-	else if(RSS_strcmp(&copy[3],RSS_text("Dec"))==0)
-		timeinfo.tm_mon = 11;
-	else /* wrong month name */
+	
+	/* parsing month name */
+	for(i=0; i<12; i++)
+	{
+		if(RSS_strcmp(&copy[3], months_names[i])==0) 
+		{
+			timeinfo.tm_mon = i;
+			break;
+		}
+	}
+	/* wrong month name */
+	if(i == 12)
+	{
+		if(handler)
+			handler(RSS_EL_WARNING, RSS_text("Failed to parse RFC822 date, wrong month name"), RSS_NO_POS_INFO);
 		return 0;
-	timeinfo.tm_year = RSS_atoi(&copy[7]) - 1900;
-	timeinfo.tm_hour = RSS_atoi(&copy[12]);
-	timeinfo.tm_min = RSS_atoi(&copy[15]);
-	timeinfo.tm_sec = RSS_atoi(&copy[18]);
+	}
 
-	return mktime(&timeinfo);
+	timeinfo.tm_year = RSS_atoi(&copy[7]) - 1900;
+	timeinfo.tm_hour = RSS_atoi(&copy[10+year_offset]);
+	timeinfo.tm_min = RSS_atoi(&copy[13+year_offset]);
+	timeinfo.tm_sec = RSS_atoi(&copy[16+year_offset]);
+
+	timezone_diff = 0;
+	if(length > 19 + year_offset)
+	{
+		timezone = &(copy[19+year_offset]);
+
+		if(timezone[0] == RSS_text('+') || timezone[0] == RSS_text('-'))
+		{
+			if(length >= 22 + year_offset)
+			{
+				RSS_char	hour[3], min[3];
+				int			dh, dm;
+				hour[0] = timezone[1]; hour[1] = timezone[2]; hour[2] = 0;
+				min[0] = timezone[3]; min[1] = timezone[4]; min[2] = 0;
+				dh = RSS_atoi(hour);
+				dm = RSS_atoi(min);
+				timezone_diff = dh * 3600 + dm * 60;
+				if(timezone[0] == RSS_text('-'))
+					timezone_diff = -timezone_diff;
+			}
+		}
+		else
+		{
+			/* named difference */
+			for(i=0; i<RSS_TIMEZONES_LEN; i++)
+			{
+				if(RSS_strcmp(timezone, timezones[i].name) == 0)
+				{
+					timezone_diff = timezones[i].diff * 3600;
+					break;
+				}
+			}
+			if(i == RSS_TIMEZONES_LEN)
+			{
+				if(handler)
+					handler(RSS_EL_WARNING, RSS_text("Failed to parse RFC822 date, wrong timezone name"), RSS_NO_POS_INFO);
+				return 0;
+			}
+		}
+	}
+
+	return mktime(&timeinfo) + timezone_diff;
 }
 
 time_t RSS_parse_RFC3339_Date(const RSS_char* str, RSS_error_handler handler)
 {
 	struct tm	timeinfo;
 	RSS_char		copy[21] = {0};
+
+	if(!str)
+		return 0;
 	
-	memset(&timeinfo, 0, sizeof(struct tm));
 	if(RSS_strlen(str) != 20)
 	{
 		if(handler)
@@ -82,6 +140,7 @@ time_t RSS_parse_RFC3339_Date(const RSS_char* str, RSS_error_handler handler)
 		return 0;
 	}
 	
+	memset(&timeinfo, 0, sizeof(struct tm));
 	RSS_strcpy(copy, str);
 	copy[4] = 0; /* remove the unnecessary chars */
 	copy[7] = 0;
@@ -109,63 +168,87 @@ void RSS_free_feed(RSS_Feed* feed)
 		return;
 
 	/* Free the channel info */
-	if(feed->channel.category)
-		free(feed->channel.category);
+	if(feed->author)
+	{
+		if(feed->author->name)
+			free(feed->author->name);
 
-	if(feed->channel.cloud)
-		free(feed->channel.cloud);
+		if(feed->author->uri)
+			free(feed->author->uri);
 
-	if(feed->channel.copyright)
-		free(feed->channel.copyright);
+		if(feed->author->email)
+			free(feed->author->email);
 
-	if(feed->channel.description)
-		free(feed->channel.description);
+		free(feed->author);
+	}
 
-	if(feed->channel.docs)
-		free(feed->channel.docs);
+	if(feed->category)
+		free(feed->category);
 
-	if(feed->channel.generator)
-		free(feed->channel.generator);
+	if(feed->copyright)
+		free(feed->copyright);
 
-	if(feed->channel.image)
-		free(feed->channel.image);
+	if(feed->description)
+		free(feed->description);
 
-	if(feed->channel.language)
-		free(feed->channel.language);
+	if(feed->docs)
+		free(feed->docs);
 
-	if(feed->channel.link)
-		free(feed->channel.link);
+	if(feed->generator)
+		free(feed->generator);
 
-	if(feed->channel.managingEditor)
-		free(feed->channel.managingEditor);
+	if(feed->id)
+		free(feed->id);
 
-	if(feed->channel.rating)
-		free(feed->channel.rating);
+	if(feed->image)
+	{
+		if(feed->image->url)
+			free(feed->image->url);
 
-	if(feed->channel.skipDays)
-		free(feed->channel.skipDays);
+		if(feed->image->title)
+			free(feed->image->title);
 
-	if(feed->channel.skipHours)
-		free(feed->channel.skipHours);
+		if(feed->image->link)
+			free(feed->image->link);
 
-	if(feed->channel.title)
-		free(feed->channel.title);
+		if(feed->image->description)
+			free(feed->image->description);
 
-	if(feed->channel.textInput)
-		free(feed->channel.textInput);
+		free(feed->image);
+	}
 
-	if(feed->channel.webMaster)
-		free(feed->channel.webMaster);
+	if(feed->language)
+		free(feed->language);
 
-	if(feed->channel.skipHours)
-		free(feed->channel.skipHours);
+	if(feed->link)
+		free(feed->link);
+
+	if(feed->managingEditor)
+		free(feed->managingEditor);
+
+	if(feed->title)
+		free(feed->title);
+
+	if(feed->webMaster)
+		free(feed->webMaster);
 
 	/* Free channel items */
-	item = feed->channel.items;
+	item = feed->items;
 	while(item)
 	{
 		if(item->author)
+		{
+			if(item->author->name)
+				free(item->author->name);
+
+			if(item->author->uri)
+				free(item->author->uri);
+
+			if(item->author->email)
+				free(item->author->email);
+
 			free(item->author);
+		}
 
 		if(item->category)
 			free(item->category);
@@ -173,11 +256,11 @@ void RSS_free_feed(RSS_Feed* feed)
 		if(item->comments)
 			free(item->comments);
 
+		if(item->copyright)
+			free(item->copyright);
+
 		if(item->description)
 			free(item->description);
-
-		if(item->enclosure)
-			free(item->enclosure);
 
 		if(item->guid)
 			free(item->guid);
@@ -187,6 +270,9 @@ void RSS_free_feed(RSS_Feed* feed)
 
 		if(item->source)
 			free(item->source);
+
+		if(item->sourceUrl)
+			free(item->sourceUrl);
 
 		if(item->title)
 			free(item->title);
@@ -226,62 +312,72 @@ RSS_Feed* RSS_parse_RSS(const RSS_Node* root, RSS_error_handler handler)
 	{
 		if(node->value)
 		{
-			if(RSS_strcmp(node->name, RSS_text("title")) == 0 && !feed->channel.title)
-				feed->channel.title = RSS_strdup(node->value);
+			if(!feed->title && RSS_strcmp(node->name, RSS_text("title")) == 0)
+				feed->title = RSS_strdup(node->value);
 
-			else if(RSS_strcmp(node->name, RSS_text("description")) == 0 && !feed->channel.description)
-				feed->channel.description = RSS_strdup(node->value);
+			else if(!feed->description && RSS_strcmp(node->name, RSS_text("description")) == 0)
+				feed->description = RSS_strdup(node->value);
 
-			else if(RSS_strcmp(node->name, RSS_text("link")) == 0 && !feed->channel.link)
-				feed->channel.link = RSS_strdup(node->value);
+			else if(!feed->link && RSS_strcmp(node->name, RSS_text("link")) == 0)
+				feed->link = RSS_url_decode(node->value);
 
-			else if(RSS_strcmp(node->name, RSS_text("category")) == 0 && !feed->channel.category)
-				feed->channel.category = RSS_strdup(node->value);
+			else if(!feed->category && RSS_strcmp(node->name, RSS_text("category")) == 0)
+				feed->category = RSS_strdup(node->value);
 
-			else if(RSS_strcmp(node->name, RSS_text("cloud")) == 0 && !feed->channel.cloud)
-				feed->channel.cloud = RSS_strdup(node->value);
+			else if(!feed->copyright && RSS_strcmp(node->name, RSS_text("copyright")) == 0)
+				feed->copyright = RSS_strdup(node->value);
 
-			else if(RSS_strcmp(node->name, RSS_text("copyright")) == 0 && !feed->channel.copyright)
-				feed->channel.copyright = RSS_strdup(node->value);
+			else if(!feed->docs && RSS_strcmp(node->name, RSS_text("docs")) == 0)
+				feed->docs = RSS_strdup(node->value);
 
-			else if(RSS_strcmp(node->name, RSS_text("docs")) == 0 && !feed->channel.docs)
-				feed->channel.docs = RSS_strdup(node->value);
+			else if(!feed->generator && RSS_strcmp(node->name, RSS_text("generator")) == 0)
+				feed->generator = RSS_strdup(node->value);
 
-			else if(RSS_strcmp(node->name, RSS_text("generator")) == 0 && !feed->channel.generator)
-				feed->channel.generator = RSS_strdup(node->value);
+			else if(!feed->image && RSS_strcmp(node->name, RSS_text("image")) == 0 && node->children)
+			{
+				RSS_Node*	child;
 
-			else if(RSS_strcmp(node->name, RSS_text("image")) == 0 && !feed->channel.image)
-				feed->channel.image = RSS_strdup(node->value);
+				feed->image = (RSS_Image*)malloc(sizeof(RSS_Image));
+				memset(feed->image, 0, sizeof(RSS_Image));
+				feed->image->width = 88;
+				feed->image->height = 31;
 
-			else if(RSS_strcmp(node->name, RSS_text("language")) == 0 && !feed->channel.language)
-				feed->channel.language = RSS_strdup(node->value);
+				child = node->children;
+				while(child)
+				{
+					if(RSS_strcmp(child->name, RSS_text("url")) == 0)
+						feed->image->url = RSS_strdup(child->value);
+					else if(RSS_strcmp(child->name, RSS_text("title")) == 0)
+						feed->image->title = RSS_strdup(child->value);
+					else if(RSS_strcmp(child->name, RSS_text("link")) == 0)
+						feed->image->link = RSS_strdup(child->value);
+					else if(child->value && RSS_strcmp(child->name, RSS_text("width")) == 0)
+						feed->image->width = RSS_atoi(child->value);
+					else if(child->value && RSS_strcmp(child->name, RSS_text("height")) == 0)
+						feed->image->height = RSS_atoi(child->value);
+					else if(RSS_strcmp(child->name, RSS_text("description")) == 0)
+						feed->image->description = RSS_strdup(child->value);
+					child = child->neighbour;
+				}
+			}
+
+			else if(!feed->language && RSS_strcmp(node->name, RSS_text("language")) == 0)
+				feed->language = RSS_strdup(node->value);
 
 			else if(RSS_strcmp(node->name, RSS_text("lastBuildDate")) == 0)
-				feed->channel.lastBuildDate = RSS_parse_RFC822_Date(node->value, handler);
+				feed->lastBuildDate = RSS_parse_RFC822_Date(node->value, handler);
 
-			else if(RSS_strcmp(node->name, RSS_text("managingEditor")) == 0 && !feed->channel.managingEditor)
-				feed->channel.managingEditor = RSS_strdup(node->value);
+			else if(!feed->managingEditor && RSS_strcmp(node->name, RSS_text("managingEditor")) == 0)
+				feed->managingEditor = RSS_strdup(node->value);
 
 			else if(RSS_strcmp(node->name, RSS_text("pubDate")) == 0)
-				feed->channel.pubDate = RSS_parse_RFC822_Date(node->value, handler);
-
-			else if(RSS_strcmp(node->name, RSS_text("rating")) == 0 && !feed->channel.rating)
-				feed->channel.rating = RSS_strdup(node->value);
-
-			else if(RSS_strcmp(node->name, RSS_text("skipDays")) == 0 && !feed->channel.skipDays)
-				feed->channel.skipDays = RSS_strdup(node->value);
-
-			else if(RSS_strcmp(node->name, RSS_text("skipHours")) == 0 && !feed->channel.skipHours)
-				feed->channel.skipHours = RSS_strdup(node->value);
-
-			else if(RSS_strcmp(node->name, RSS_text("textInput")) == 0 && !feed->channel.textInput)
-				feed->channel.textInput = RSS_strdup(node->value);
+				feed->pubDate = RSS_parse_RFC822_Date(node->value, handler);
 
 			else if(RSS_strcmp(node->name, RSS_text("ttl")) == 0)
-				feed->channel.ttl = RSS_atoi(node->value);
+				feed->ttl = RSS_atoi(node->value);
 
-			else if(RSS_strcmp(node->name, RSS_text("webMaster")) == 0 && !feed->channel.webMaster)
-				feed->channel.webMaster = RSS_strdup(node->value);
+			else if(!feed->webMaster && RSS_strcmp(node->name, RSS_text("webMaster")) == 0)
+				feed->webMaster = RSS_strdup(node->value);
 		} /* if(node->value) */
 
 		else if(RSS_strcmp(node->name, RSS_text("item")) == 0)
@@ -297,30 +393,62 @@ RSS_Feed* RSS_parse_RSS(const RSS_Node* root, RSS_error_handler handler)
 			{
 				if(itemNode->value)
 				{
-					if(RSS_strcmp(itemNode->name, RSS_text("title")) == 0 && !item->title)
+					if(!item->title && RSS_strcmp(itemNode->name, RSS_text("title")) == 0)
 						item->title = RSS_strdup(itemNode->value);
-					else if(RSS_strcmp(itemNode->name, RSS_text("description")) == 0 && !item->description)
+					else if(!item->description && RSS_strcmp(itemNode->name, RSS_text("description")) == 0)
 						item->description = RSS_strdup(itemNode->value);
-					else if(RSS_strcmp(itemNode->name, RSS_text("link")) == 0 && !item->link)
-						item->link = RSS_strdup(itemNode->value);
-					else if(RSS_strcmp(itemNode->name, RSS_text("author")) == 0	&& !item->author)
-						item->author = RSS_strdup(itemNode->value);
-					else if(RSS_strcmp(itemNode->name, RSS_text("category")) == 0 && !item->category)
+					else if(!item->link && RSS_strcmp(itemNode->name, RSS_text("link")) == 0)
+						item->link = RSS_url_decode(itemNode->value);
+					else if(!item->author && RSS_strcmp(itemNode->name, RSS_text("author")) == 0)
+					{
+						item->author = (RSS_Author*)malloc(sizeof(RSS_Author));
+						memset(item->author, 0, sizeof(RSS_Author));
+						item->author->email = RSS_strdup(itemNode->value);
+					}
+					else if(!item->category && RSS_strcmp(itemNode->name, RSS_text("category")) == 0)
 						item->category = RSS_strdup(itemNode->value);
-					else if(RSS_strcmp(itemNode->name, RSS_text("comments")) == 0 && !item->comments)
+					else if(!item->comments && RSS_strcmp(itemNode->name, RSS_text("comments")) == 0)
 						item->comments = RSS_strdup(itemNode->value);
-					else if(RSS_strcmp(itemNode->name, RSS_text("enclosure")) == 0 && !item->enclosure)
-						item->enclosure = RSS_strdup(itemNode->value);
-					else if(RSS_strcmp(itemNode->name, RSS_text("guid")) == 0 && !item->guid)
+					else if(!item->guid && RSS_strcmp(itemNode->name, RSS_text("guid")) == 0)
+					{
+						RSS_Attribute*	attrib;
+
 						item->guid = RSS_strdup(itemNode->value);
+						attrib = itemNode->attribute;
+						while(attrib)
+						{
+							if(RSS_strcmp(attrib->name, RSS_text("isPermaLink")) == 0 && /* guid can be also a link */
+								RSS_strcmp(attrib->value, RSS_text("true")) == 0)
+							{
+								if(!item->link && itemNode->value)
+									item->link = RSS_url_decode(itemNode->value);
+								break;
+							}
+							attrib = attrib->next;
+						}
+					}
 					else if(RSS_strcmp(itemNode->name, RSS_text("pubDate")) == 0)
 						item->pubDate = RSS_parse_RFC822_Date(itemNode->value, handler);
-					else if(RSS_strcmp(itemNode->name, RSS_text("source")) == 0 && !item->source)
-						item->source = RSS_strdup(itemNode->value);
-					else
+					else if(!item->source && RSS_strcmp(itemNode->name, RSS_text("source")) == 0)
 					{
-						/* TODO: log unknown tag */
+						RSS_Attribute*	attrib;
+
+						item->source = RSS_strdup(itemNode->value);
+						attrib = itemNode->attribute;
+						while(attrib)
+						{
+							if(RSS_strcmp(attrib->name, RSS_text("url")) == 0)
+							{
+								if(!item->sourceUrl)
+									item->sourceUrl = RSS_url_decode(attrib->value);
+								break;
+							}
+							attrib = attrib->next;
+						}
 					}
+					else if(RSS_strcmp(itemNode->name, RSS_text("pubDate")) == 0)
+						item->pubDate = RSS_parse_RFC822_Date(itemNode->value, handler);
+
 				} /* if(itemNode->value) */
 				itemNode = itemNode->neighbour;
 
@@ -336,7 +464,7 @@ RSS_Feed* RSS_parse_RSS(const RSS_Node* root, RSS_error_handler handler)
  			{
  				item->next = NULL;
  				last = item;
- 				feed->channel.items = last;
+ 				feed->items = last;
  			}
 		} /* item tag */
 		else
@@ -372,30 +500,66 @@ RSS_Feed* RSS_parse_ATOM(const RSS_Node* root, RSS_error_handler handler)
 		else
 			without_namespace += 1;
 
-		if(node->value)
+		/* parsing general info */
+		if(!feed->title && RSS_strcmp(without_namespace, RSS_text("title")) == 0 && node->value)
 		{
-			/* parsing general info */
-			if(RSS_strcmp(without_namespace, RSS_text("title")) == 0 && !feed->channel.title)
-			{
-				RSS_Attribute*	attrib;
-				int				alternate = 0;
+			RSS_Attribute*	attrib;
+			int				alternate = 0;
 
-				feed->channel.title = RSS_strdup(node->value);
-				attrib = node->attribute;
-				while(attrib)
-				{
-					if(RSS_strcmp(attrib->name, RSS_text("alternate")) == 0)
-						alternate = 1;
-					else if(RSS_strcmp(attrib->name, RSS_text("href")) == 0 && 
-							alternate == 1 && !feed->channel.link)
-						feed->channel.link = RSS_strdup(attrib->value);
-					attrib = attrib->next;
-				}
+			feed->title = RSS_strdup(node->value);
+			attrib = node->attribute;
+			while(attrib)
+			{
+				if(RSS_strcmp(attrib->name, RSS_text("alternate")) == 0)
+					alternate = 1;
+				else if(RSS_strcmp(attrib->name, RSS_text("href")) == 0 && 
+						alternate == 1 && !feed->link)
+					feed->link = RSS_url_decode(attrib->value);
+				attrib = attrib->next;
 			}
-		} /* if(node->value) */
+		}
+		else if(!feed->id && RSS_strcmp(without_namespace, RSS_text("id")) == 0)
+			feed->id = RSS_strdup(node->value);
+		else if(!feed->description && RSS_strcmp(without_namespace, RSS_text("subtitle")) == 0)
+			feed->description = RSS_strdup(node->value);
+		else if(RSS_strcmp(without_namespace, RSS_text("updated")) == 0)
+			feed->lastBuildDate = RSS_parse_RFC3339_Date(node->value, handler);
+		else if(!feed->category && RSS_strcmp(without_namespace, RSS_text("category")) == 0)
+			feed->category = RSS_strdup(node->value);
+		else if(!feed->generator && RSS_strcmp(without_namespace, RSS_text("generator")) == 0)
+			feed->generator = RSS_strdup(node->value);
+		else if(!feed->image && RSS_strcmp(without_namespace, RSS_text("logo")) == 0)
+		{
+			feed->image = (RSS_Image*)malloc(sizeof(RSS_Image));
+			memset(feed->image, 0, sizeof(RSS_Image));
+			feed->image->url = RSS_strdup(node->value);
+		}
+		else if(!feed->author && RSS_strcmp(without_namespace, RSS_text("author")) == 0 && node->children)
+		{
+			RSS_Node*	child;
+
+			feed->author = (RSS_Author*)malloc(sizeof(RSS_Author));
+			memset(feed->author, 0, sizeof(RSS_Author));
+
+			child = node->children;
+			while(child)
+			{
+				if(RSS_strcmp(child->name, RSS_text("name")) == 0)
+					feed->author->name = RSS_strdup(child->value);
+				else if(RSS_strcmp(child->name, RSS_text("uri")) == 0)
+					feed->author->uri = RSS_strdup(child->value);
+				else if(RSS_strcmp(child->name, RSS_text("email")) == 0)
+					feed->author->email = RSS_strdup(child->value);
+				child = child->neighbour;
+			}
+		}
+		else if(!feed->copyright && RSS_strcmp(without_namespace, RSS_text("rights")) == 0)
+			feed->copyright = RSS_strdup(node->value);
+		else if(!feed->category && RSS_strcmp(without_namespace, RSS_text("category")) == 0)
+			feed->category = RSS_strdup(node->value);
 
 		/* Parsing items info */
-		if(RSS_strcmp(without_namespace, RSS_text("entry")) == 0)
+		else if(RSS_strcmp(without_namespace, RSS_text("entry")) == 0)
 		{
 			RSS_Item*	item;
 
@@ -413,17 +577,44 @@ RSS_Feed* RSS_parse_ATOM(const RSS_Node* root, RSS_error_handler handler)
 					else
 						without_namespace += 1;
 
-					if(	RSS_strcmp(without_namespace, RSS_text("title")) == 0 && !item->title)
+					if(!item->title && RSS_strcmp(without_namespace, RSS_text("title")) == 0)
 						item->title = RSS_strdup(itemNode->value);
-					else if(RSS_strcmp(without_namespace, RSS_text("id")) == 0 && !item->guid)
+					else if(!item->guid && RSS_strcmp(without_namespace, RSS_text("id")) == 0)
 						item->guid = RSS_strdup(itemNode->value);
-					else if(RSS_strcmp(without_namespace, RSS_text("updated")) == 0)
+					else if(item->pubDate == 0 && 
+						(RSS_strcmp(without_namespace, RSS_text("updated")) == 0 || RSS_strcmp(without_namespace, RSS_text("published")) == 0))
 						item->pubDate = RSS_parse_RFC822_Date(itemNode->value, handler);
-					else if(RSS_strcmp(without_namespace, RSS_text("content")) == 0 && !item->description)
+					else if(!item->description && RSS_strcmp(without_namespace, RSS_text("content")) == 0)
 						item->description = RSS_strdup(itemNode->value);
+					else if(!item->author && RSS_strcmp(without_namespace, RSS_text("author")) == 0 && itemNode->children)
+					{
+						RSS_Node*	child;
+
+						item->author = (RSS_Author*)malloc(sizeof(RSS_Author));
+						memset(item->author, 0, sizeof(RSS_Author));
+
+						child = itemNode->children;
+						while(child)
+						{
+							if(RSS_strcmp(child->name, RSS_text("name")) == 0)
+								item->author->name = RSS_strdup(child->value);
+							else if(RSS_strcmp(child->name, RSS_text("uri")) == 0)
+								item->author->uri = RSS_strdup(child->value);
+							else if(RSS_strcmp(child->name, RSS_text("email")) == 0)
+								item->author->email = RSS_strdup(child->value);
+							child = child->neighbour;
+						}
+					}
+					else if(!item->copyright && RSS_strcmp(without_namespace, RSS_text("rights")) == 0)
+						item->copyright = RSS_strdup(itemNode->value);
+					else if(!item->source && RSS_strcmp(without_namespace, RSS_text("source")) == 0)
+						item->source = RSS_strdup(itemNode->value);
+					else if(!item->category && RSS_strcmp(without_namespace, RSS_text("category")) == 0)
+						item->category = RSS_strdup(itemNode->value);
+
 				} /* if(itemNode->value) */
 
-				if(RSS_strcmp(without_namespace, RSS_text("link")) == 0 && !item->link)
+				if(!item->link && RSS_strcmp(without_namespace, RSS_text("link")) == 0)
 				{
 					RSS_Attribute*	attrib;
 					int				alternate = 0;
@@ -434,7 +625,7 @@ RSS_Feed* RSS_parse_ATOM(const RSS_Node* root, RSS_error_handler handler)
 						if(RSS_strcmp(attrib->name, RSS_text("alternate")) == 0)
 							alternate = 1;
 						else if(RSS_strcmp(attrib->name, RSS_text("href")) == 0 && alternate == 1)
-							item->link = RSS_strdup(attrib->value);
+							item->link = RSS_url_decode(attrib->value);
 						attrib = attrib->next;
 					}
 				}
@@ -452,7 +643,7 @@ RSS_Feed* RSS_parse_ATOM(const RSS_Node* root, RSS_error_handler handler)
 			{
 				item->next = NULL;
 				last = item;
- 				feed->channel.items = last;
+ 				feed->items = last;
 			}
 
 		} /* RSS_strcmp(without_namespace, RSS_text("entry") == 0 */
