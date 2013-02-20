@@ -72,4 +72,3 @@ static const timezone_diff timezones[RSS_TIMEZONES_LEN] = {
 };
 
 #endif
-

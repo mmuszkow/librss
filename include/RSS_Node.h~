@@ -6,39 +6,41 @@
 /** SGML attribute */
 typedef struct RSS_Attribute RSS_Attribute;
 
-struct RSS_Attribute {
-    /** Attribute name */
-    RSS_char*       name;
-    /** Attribute value */
-    RSS_char*       value;
-    /** Linked list - next item */
-    RSS_Attribute*  next;
+struct RSS_Attribute
+{
+	/** Attribute name */
+	RSS_char*		name;
+	/** Attribute value */
+	RSS_char*		value;
+	/** Linked list - next item */
+	RSS_Attribute*	next;
 };
 
 /** SGML Node */
 typedef struct RSS_Node RSS_Node;
 
-struct RSS_Node {
-    /** SGML node name */
-    RSS_char*   name;
+struct RSS_Node
+{
+	/** SGML node name */
+	RSS_char*	name;
 
-    /** SGML node text value */
-    RSS_char*   value;
+	/** SGML node text value */
+	RSS_char*	value;
 
-    /** Neighbours - first list element */
-    RSS_Node*   neighbour;
+	/** Neighbours - first list element */
+	RSS_Node*	neighbour;
 
-    /** Neighbours - last list element */
-    RSS_Node*   last_neighbour;
+	/** Neighbours - last list element */
+	RSS_Node*	last_neighbour;
 
-    /** Childrens */
-    RSS_Node*   children;
+	/** Childrens */
+	RSS_Node*	children;
 
-    /** Attributes - first list element */
-    RSS_Attribute*  attribute;
+	/** Attributes - first list element */
+	RSS_Attribute*	attribute;
 
-    /** Attributes - last list element */
-    RSS_Attribute*  last_attribute;
+	/** Attributes - last list element */
+	RSS_Attribute*	last_attribute;
 };
 
 /** Creates new SGML attribute */
@@ -58,4 +60,3 @@ RSS_Node* RSS_node_children_add(RSS_Node* node, const RSS_char* name);
 void RSS_free_node(RSS_Node* node);
 
 #endif
-

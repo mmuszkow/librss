@@ -5,94 +5,84 @@
 # include <iconv.h> /* iconv is not working with wchar_t and UTF-16 on Windows */
 #endif
 
-RSS_Buffer* RSS_create_buffer()
-{
-	RSS_Buffer* buffer;
+RSS_Buffer* RSS_create_buffer() {
+    RSS_Buffer* buffer;
 
-	buffer = (RSS_Buffer*)malloc(sizeof(RSS_Buffer));
-	buffer->str = (RSS_char*)malloc(RSS_BUFFER_INITIAL_SIZE * sizeof(RSS_char));
-	buffer->str[0] = 0;
-	buffer->reserved = RSS_BUFFER_INITIAL_SIZE;
-	buffer->len = 0;
+    buffer = (RSS_Buffer*)malloc(sizeof(RSS_Buffer));
+    buffer->str = (RSS_char*)malloc(RSS_BUFFER_INITIAL_SIZE * sizeof(RSS_char));
+    buffer->str[0] = 0;
+    buffer->reserved = RSS_BUFFER_INITIAL_SIZE;
+    buffer->len = 0;
 
-	return buffer;
+    return buffer;
 }
 
-void RSS_reserve_buffer(RSS_Buffer* buffer)
-{
-	RSS_char* tmp;
+void RSS_reserve_buffer(RSS_Buffer* buffer) {
+    RSS_char* tmp;
 
-	if(buffer->len > 0)
-	{
-		tmp = buffer->str;
-		buffer->str = (RSS_char*)malloc((buffer->reserved << 1) * sizeof(RSS_char));
-		memcpy(buffer->str, tmp, buffer->len * sizeof(RSS_char));
-		free(tmp);
-		buffer->reserved <<= 1;
-	}
-	else
-	{
-		free(buffer->str);
-		buffer->str = (RSS_char*)malloc((buffer->reserved<<1) * sizeof(RSS_char));
-		buffer->reserved <<= 1;
-		buffer->str[0] = 0;
-	}
+    if(buffer->len > 0)    {
+        tmp = buffer->str;
+        buffer->str = (RSS_char*)malloc((buffer->reserved << 1) * sizeof(RSS_char));
+        memcpy(buffer->str, tmp, buffer->len * sizeof(RSS_char));
+        free(tmp);
+        buffer->reserved <<= 1;
+    } else {
+        free(buffer->str);
+        buffer->str = (RSS_char*)malloc((buffer->reserved<<1) * sizeof(RSS_char));
+        buffer->reserved <<= 1;
+        buffer->str[0] = 0;
+    }
 }
 
-void RSS_add_buffer(RSS_Buffer* buffer, RSS_char ch)
-{
-	if(buffer->len >= buffer->reserved - 1)
-		RSS_reserve_buffer(buffer);
+void RSS_add_buffer(RSS_Buffer* buffer, RSS_char ch) {
+    if(buffer->len >= buffer->reserved - 1)
+        RSS_reserve_buffer(buffer);
 
-	buffer->str[buffer->len] = ch;
-	buffer->str[++(buffer->len)] = 0;
+    buffer->str[buffer->len] = ch;
+    buffer->str[++(buffer->len)] = 0;
 }
 
-void RSS_clear_buffer(RSS_Buffer* buffer)
-{
-	buffer->len = 0;
-	buffer->str[0] = 0;
+void RSS_clear_buffer(RSS_Buffer* buffer) {
+    buffer->len = 0;
+    buffer->str[0] = 0;
 }
 
-void RSS_free_buffer(RSS_Buffer* buffer)
-{
-	free(buffer->str);
-	free(buffer);
+void RSS_free_buffer(RSS_Buffer* buffer) {
+    free(buffer->str);
+    free(buffer);
 }
 
-char* RSS_str2char(const RSS_char* str)
-{
+char* RSS_str2char(const RSS_char* str) {
 #ifdef RSS_USE_WSTRING
 # ifdef _WIN32
-	char*	ret;
-	int		len;
+    char*   ret;
+    int     len;
 
-	len = WideCharToMultiByte(CP_ACP, 0, str, -1, NULL, 0, 0, 0);
-	ret = (char*)malloc(len + 1);	
-	WideCharToMultiByte(CP_ACP, 0, str, -1, ret, len, 0, 0);
-	return ret;
+    len = WideCharToMultiByte(CP_ACP, 0, str, -1, NULL, 0, 0, 0);
+    ret = (char*)malloc(len + 1);    
+    WideCharToMultiByte(CP_ACP, 0, str, -1, ret, len, 0, 0);
+    return ret;
 # else
 #  error "Not implemented"
 # endif
 #else
-	return strdup(str);
+    return strdup(str);
 #endif
 }
 
-RSS_char* char2RSS_str(const char* str, RSS_Encoding enc)
-{
+RSS_char* char2RSS_str(const char* str, RSS_Encoding enc) {
 #ifdef RSS_USE_WSTRING
 # ifdef _WIN32
-	wchar_t*	ret;
-	int			len;
+    wchar_t*    ret;
+    int         len;
 
-	len = MultiByteToWideChar((UINT)enc, 0, str, -1, NULL, 0);
-	ret = (wchar_t*)malloc((len + 1)* sizeof(wchar_t));
-	MultiByteToWideChar(enc, 0, str, -1, ret, len);
-	return ret;
+    len = MultiByteToWideChar((UINT)enc, 0, str, -1, NULL, 0);
+    ret = (wchar_t*)malloc((len + 1)* sizeof(wchar_t));
+    MultiByteToWideChar(enc, 0, str, -1, ret, len);
+    return ret;
 # else
 #  error "Not implemented"
-# endif	
+# endif    
 #else
 # ifdef RSS_USE_WSTRING
 #  error "Not implemented"
@@ -124,8 +114,7 @@ RSS_char* char2RSS_str(const char* str, RSS_Encoding enc)
     inpos = (char*)str;
     outpos = utf8;
 
-    if(iconv(conv_desc, &inpos, &len, &outpos, &utf8len) == (size_t) -1)
-    {
+    if(iconv(conv_desc, &inpos, &len, &outpos, &utf8len) == (size_t) -1) {
         free(utf8);
         iconv_close(conv_desc);
         return NULL;
@@ -139,12 +128,10 @@ RSS_char* char2RSS_str(const char* str, RSS_Encoding enc)
 #endif
 }
 
-RSS_char* RSS_get_encoding_name(RSS_Encoding enc)
-{
-    switch(enc)
-    {
+RSS_char* RSS_get_encoding_name(RSS_Encoding enc) {
+    switch(enc) {
         case RSS_ENC_UTF8: return RSS_text("UTF-8");
-    	case RSS_ENC_ISO8859_1: return RSS_text("ISO88591");
+        case RSS_ENC_ISO8859_1: return RSS_text("ISO88591");
         case RSS_ENC_WINDOWS_1252: return RSS_text("WINDOWS-1252");
         case RSS_ENC_ISO8859_2: return RSS_text("ISO88592");
         case RSS_ENC_WINDOWS_1250: return RSS_text("WINDOWS-1250");
@@ -166,8 +153,7 @@ RSS_char* RSS_get_encoding_name(RSS_Encoding enc)
     }
 }
 
-char* RSS_my_strdup(const char* str)
-{
+char* RSS_my_strdup(const char* str) {
     size_t  n;
     char*   dup;
     
@@ -183,8 +169,7 @@ char* RSS_my_strdup(const char* str)
     return dup;
 }
 
-int RSS_my_strncasecmp(const char* s1, const char* s2, size_t n)
-{
+int RSS_my_strncasecmp(const char* s1, const char* s2, size_t n) {
     unsigned char   c1,c2;
     size_t          i;
     

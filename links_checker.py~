@@ -32,4 +32,3 @@ for line in fin:
         print "%s -> Unknown exception"  % (fullurl)
 
 fin.close()
-

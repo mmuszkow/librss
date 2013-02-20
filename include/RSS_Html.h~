@@ -34,4 +34,3 @@ RSS_char RSS_html_entity_parse_hex(const RSS_char* str, size_t* pos);
 RSS_char* RSS_html_decode(const RSS_char* str);
 
 #endif
-

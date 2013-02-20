@@ -26,27 +26,28 @@ typedef struct RSS_Url {
         "\r\n"
 
 /** HTTP errors */
-typedef enum RSS_Http_error {
-    /** Everything OK */
-    RSS_HTTP_OK,
-    /** Could not create socket */
-    RSS_HTTP_SOCKET,
-    /** Could not resolve host name */
-    RSS_HTTP_GETHOSTBYNAME,
-    /** Received adress is not in IPv4 format */
-    RSS_HTTP_NOT_IPV4,
-    /** Could not connect */
-    RSS_HTTP_CONN_FAILED,
-    /** Could not send */
-    RSS_HTTP_SEND_FAILED,
-    /** HTTP response code different than 200 */
-    RSS_HTTP_NOT_200,
-    /** No HTTP data found */
-    RSS_HTTP_NO_DATA,
-    /** Bad function arguments */
-    RSS_HTTP_BAD_ARG,
-    /** Requested page was to big to allocate memory for it */
-    RSS_HTTP_PAGE_TOO_BIG
+typedef enum RSS_Http_error 
+{
+        /** Everything OK */
+        RSS_HTTP_OK,
+        /** Could not create socket */
+        RSS_HTTP_SOCKET,
+        /** Could not resolve host name */
+        RSS_HTTP_GETHOSTBYNAME,
+        /** Received adress is not in IPv4 format */
+        RSS_HTTP_NOT_IPV4,
+        /** Could not connect */
+        RSS_HTTP_CONN_FAILED,
+        /** Could not send */
+        RSS_HTTP_SEND_FAILED,
+        /** HTTP response code different than 200 */
+        RSS_HTTP_NOT_200,
+        /** No HTTP data found */
+        RSS_HTTP_NO_DATA,
+        /** Bad function arguments */
+        RSS_HTTP_BAD_ARG,
+        /** Requested page was to big to allocate memory for it */
+        RSS_HTTP_PAGE_TOO_BIG
 } RSS_Http_error;
 
 /** Initial size for buffer used to retrieve page, not less than 4KB! */
@@ -72,4 +73,3 @@ RSS_char*    RSS_html_decode(const RSS_char* str);
 RSS_char*    RSS_url_decode(const RSS_char* str);
 
 #endif
-
