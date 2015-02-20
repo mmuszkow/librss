@@ -116,7 +116,7 @@ RSS_char* RSS_html_decode(const RSS_char* str) {
     pos = 0;
 
     while(pos < length) {
-        // Trim start
+        /* Trim start */
         if (temp->len == 0)
         {
             switch(str[pos]) {
@@ -159,7 +159,7 @@ RSS_char* RSS_html_decode(const RSS_char* str) {
         }
     }
 
-    // Only whitespace characters in input
+    /* Only whitespace characters in input */
     if (temp->len == 0)
     {
        RSS_free_buffer(temp);
