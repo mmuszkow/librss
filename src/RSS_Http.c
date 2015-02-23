@@ -28,6 +28,7 @@ RSS_Url* RSS_create_url(const RSS_char* url) {
     size_t          len;
     const RSS_char* tmp_host;
     const RSS_char* tmp_path;
+    const RSS_char* tmp_port;
     RSS_Url*        rss_url;
 
     if(!url)
@@ -51,10 +52,26 @@ RSS_Url* RSS_create_url(const RSS_char* url) {
         rss_url->path = strdup("/");
 
     /* find host */
-    len = RSS_strlen(tmp_host) - strlen(rss_url->path);
-    if(!tmp_path)
-        len += 2;
     if(len > 0)    {
+        tmp_port = RSS_strstr(tmp_host, RSS_text(":"));
+        if (tmp_port)
+        {
+            rss_url->port = RSS_atoi(tmp_port + 1);
+            len = RSS_strlen(tmp_host) - strlen(tmp_port);
+        }
+        else
+        {
+            len = RSS_strlen(tmp_host) - strlen(rss_url->path);
+        }
+        if(!tmp_path)
+        {
+            len += 2;
+        }
+        if (rss_url->port == 0)
+        {
+            rss_url->port = 80;
+        }
+        
         rss_url->host = RSS_str2char(tmp_host);
         rss_url->host[len] = 0;
     } else {
@@ -119,7 +136,7 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer) {
     /* TODO: this can be not x64 compatybile */
     sin.sin_addr.s_addr = *(unsigned long*)remoteHost->h_addr_list[0];
     sin.sin_family = AF_INET;
-    sin.sin_port = htons(80);
+    sin.sin_port = htons(url->port);
 
     if(connect(sock, (SOCKADDR *)&sin, sizeof(sin)) == SOCKET_ERROR) {
         CLOSESOCKET(sock);
@@ -133,6 +150,7 @@ RSS_Http_error RSS_http_get_page(const RSS_Url* url, char** buffer) {
         strlen(url->host) +
         strlen(url->path) + 3;
     header_buff = (char*)malloc(s+1);
+    /* TODO: port in host header */
     sprintf(header_buff, 
         RSS_HTTP_HEADER1 \
         "%s" \

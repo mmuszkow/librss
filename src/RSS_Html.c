@@ -116,6 +116,19 @@ RSS_char* RSS_html_decode(const RSS_char* str) {
     pos = 0;
 
     while(pos < length) {
+        /* Trim start */
+        if (temp->len == 0)
+        {
+            switch(str[pos]) {
+                case RSS_text('\r'):
+                case RSS_text('\n'):
+                case RSS_text('\t'):
+                case RSS_text(' '):
+                    pos++;
+                    continue;
+            }
+        }
+        
         if(str[pos] == RSS_text('&')) {
             if(pos + 2 < length && str[pos+1] == RSS_text('#')) {
                 /* &#x1A4F */
@@ -146,6 +159,13 @@ RSS_char* RSS_html_decode(const RSS_char* str) {
         }
     }
 
+    /* Only whitespace characters in input */
+    if (temp->len == 0)
+    {
+       RSS_free_buffer(temp);
+       return NULL;
+    }
+    
     res = RSS_strdup(temp->str);
     RSS_free_buffer(temp);
     return res;

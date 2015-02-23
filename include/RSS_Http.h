@@ -10,6 +10,7 @@
     */
 typedef struct RSS_Url {
     char*    host;
+    int      port;
     char*    path;
 } RSS_Url;
 
